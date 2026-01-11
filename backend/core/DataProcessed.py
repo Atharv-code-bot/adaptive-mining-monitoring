@@ -3,113 +3,110 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 
 
-# -----------------------------------------
-# PHASE 1: Load & Validate Data
-# -----------------------------------------
+# --------------------------------------------------
+# CORE PREPROCESSING FUNCTION (REUSABLE)
+# --------------------------------------------------
+def preprocess_pixel_timeseries(csv_path: str):
+    """
+    Preprocess pixel-wise Sentinel-2 time series data for ML.
 
-CSV_PATH = "/content/cil_mine_pixel_timeseries_339.csv"
+    Parameters
+    ----------
+    csv_path : str
+        Path to pixel-wise CSV file
 
-df = pd.read_csv(CSV_PATH)
+    Returns
+    -------
+    X : np.ndarray
+        Scaled spectral feature matrix
+    metadata : pd.DataFrame
+        Metadata for post-ML analysis
+    df_scaled : pd.DataFrame
+        Fully processed DataFrame (scaled)
+    """
 
-# Expected schema
-required_columns = [
-    "mine_id", "date", "latitude", "longitude",
-    "B4", "B8", "B11", "NDVI", "NBR"
-]
+    # -----------------------------------------
+    # PHASE 1: Load & Validate Data
+    # -----------------------------------------
+    df = pd.read_csv(csv_path)
 
-missing_cols = set(required_columns) - set(df.columns)
-if missing_cols:
-    raise ValueError(f"Missing required columns: {missing_cols}")
+    required_columns = [
+        "mine_id", "date", "latitude", "longitude",
+        "B4", "B8", "B11", "NDVI", "NBR"
+    ]
 
-print("✅ Data loaded successfully")
-print("Shape:", df.shape)
-print("\nSchema:")
-print(df.dtypes)
-print("\nSample rows:")
-print(df.head())
+    missing_cols = set(required_columns) - set(df.columns)
+    if missing_cols:
+        raise ValueError(f"Missing required columns: {missing_cols}")
 
+    print("✅ Data loaded successfully")
+    print("Shape:", df.shape)
 
-# -----------------------------------------
-# PHASE 2: Date Handling
-# -----------------------------------------
+    # -----------------------------------------
+    # PHASE 2: Date Handling
+    # -----------------------------------------
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df = df.dropna(subset=["date"])
 
-df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df = df.sort_values(
+        by=["mine_id", "latitude", "longitude", "date"]
+    ).reset_index(drop=True)
 
-# Remove rows with invalid dates only
-df = df.dropna(subset=["date"])
+    print("✅ Date conversion & sorting completed")
 
-# Sort for temporal consistency
-df = df.sort_values(
-    by=["mine_id", "latitude", "longitude", "date"]
-).reset_index(drop=True)
+    # -----------------------------------------
+    # PHASE 3: Missing / Invalid Value Handling
+    # -----------------------------------------
+    numeric_cols = ["B4", "B8", "B11", "NDVI", "NBR"]
 
-print("\n✅ Date conversion & sorting completed")
+    df[numeric_cols] = df[numeric_cols].replace([np.inf, -np.inf], np.nan)
 
+    initial_rows = df.shape[0]
+    df = df.dropna(subset=numeric_cols)
+    final_rows = df.shape[0]
 
-# -----------------------------------------
-# PHASE 3: Missing / Invalid Value Handling
-# -----------------------------------------
+    print(f"Removed {initial_rows - final_rows} invalid rows")
+    print("Remaining rows:", final_rows)
 
-numeric_cols = ["B4", "B8", "B11", "NDVI", "NBR"]
+    # -----------------------------------------
+    # PHASE 4: Feature Scaling
+    # -----------------------------------------
+    features = df[numeric_cols].values
 
-# Replace infinite values
-df[numeric_cols] = df[numeric_cols].replace([np.inf, -np.inf], np.nan)
+    scaler = StandardScaler()
+    features_scaled = scaler.fit_transform(features)
 
-# Drop only rows with invalid spectral values
-initial_rows = df.shape[0]
-df = df.dropna(subset=numeric_cols)
-final_rows = df.shape[0]
+    df_scaled = df.copy()
+    df_scaled[numeric_cols] = features_scaled
 
-print(f"\nRemoved {initial_rows - final_rows} invalid rows")
-print("Remaining rows:", final_rows)
+    print("✅ Feature scaling completed")
 
+    # -----------------------------------------
+    # PHASE 5: Temporal Helper Features
+    # -----------------------------------------
+    df_scaled["month"] = df_scaled["date"].dt.month
 
-# -----------------------------------------
-# PHASE 4: Feature Scaling
-# -----------------------------------------
+    df_scaled["time_index"] = (
+        df_scaled
+        .groupby(["mine_id", "latitude", "longitude"])
+        .cumcount()
+    )
 
-features = df[numeric_cols].values
+    print("✅ Temporal helper features added")
 
-scaler = StandardScaler()
-features_scaled = scaler.fit_transform(features)
+    # -----------------------------------------
+    # PHASE 6: Final Output
+    # -----------------------------------------
+    X = df_scaled[numeric_cols].values
 
-# Replace original columns with scaled values
-df_scaled = df.copy()
-df_scaled[numeric_cols] = features_scaled
+    metadata = df_scaled[
+        ["mine_id", "date", "latitude", "longitude", "month", "time_index"]
+    ]
 
-print("\n✅ Feature scaling completed")
+    print("✅ Preprocessing completed")
+    print("ML Feature Matrix Shape:", X.shape)
 
-
-# -----------------------------------------
-# PHASE 5: Temporal Helper Features
-# -----------------------------------------
-
-# Month (seasonal context)
-df_scaled["month"] = df_scaled["date"].dt.month
-
-# Time index per pixel (NOT global)
-df_scaled["time_index"] = (
-    df_scaled
-    .groupby(["mine_id", "latitude", "longitude"])
-    .cumcount()
-)
-
-print("\n✅ Temporal helper features added")
+    return X, metadata, df_scaled
 
 
-# -----------------------------------------
-# PHASE 6: Final Output
-# -----------------------------------------
 
-# ML feature matrix (ONLY spectral features)
-X = df_scaled[numeric_cols].values
-
-# Metadata preserved for post-ML analysis
-metadata = df_scaled[
-    ["mine_id", "date", "latitude", "longitude", "month", "time_index"]
-]
-
-print("\n✅ Preprocessing completed")
-print("ML Feature Matrix Shape:", X.shape)
-print("\nMetadata Sample:")
-print(metadata.head())
