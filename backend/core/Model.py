@@ -8,15 +8,15 @@ from shapely.geometry import Point
 # --------------------------------------------------
 # CORE ANOMALY + VIOLATION PIPELINE (REUSABLE)
 # --------------------------------------------------
-def run_anomaly_detection(csv_path: str):
+def run_anomaly_detection(df: pd.DataFrame):
     """
     Runs Isolation Forest based excavation detection and
     generates violation alerts.
 
     Parameters
     ----------
-    csv_path : str
-        Path to pixel-wise CSV file
+    df : pd.DataFrame
+        Preprocessed pixel-wise dataframe (from preprocess.py)
 
     Returns
     -------
@@ -29,9 +29,9 @@ def run_anomaly_detection(csv_path: str):
     """
 
     # -----------------------------------------
-    # PHASE 1: Load Data
+    # PHASE 1: Prepare Data
     # -----------------------------------------
-    df = pd.read_csv(csv_path)
+    df = df.copy()
     df['date'] = pd.to_datetime(df['date'])
 
     FEATURES = ['B4', 'B8', 'B11', 'NDVI', 'NBR']
@@ -205,6 +205,3 @@ def run_anomaly_detection(csv_path: str):
     alerts_df = pd.DataFrame(alerts)
 
     return df_anomaly, violations, alerts_df
-
-
-
