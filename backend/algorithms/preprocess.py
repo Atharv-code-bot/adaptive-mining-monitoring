@@ -6,14 +6,14 @@ from sklearn.preprocessing import StandardScaler
 # --------------------------------------------------
 # CORE PREPROCESSING FUNCTION (REUSABLE)
 # --------------------------------------------------
-def preprocess_pixel_timeseries(csv_path: str):
+def preprocess_pixel_timeseries(data):
     """
     Preprocess pixel-wise Sentinel-2 time series data for ML.
 
     Parameters
     ----------
-    csv_path : str
-        Path to pixel-wise CSV file
+    data : pd.DataFrame
+        Pixel-wise Sentinel-2 time series DataFrame
 
     Returns
     -------
@@ -28,7 +28,11 @@ def preprocess_pixel_timeseries(csv_path: str):
     # -----------------------------------------
     # PHASE 1: Load & Validate Data
     # -----------------------------------------
-    df = pd.read_csv(csv_path)
+    if isinstance(data, str):
+        df = pd.read_csv(data)
+    else:
+        df = data.copy()
+        
 
     required_columns = [
         "mine_id", "date", "latitude", "longitude",

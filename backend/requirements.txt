@@ -5,6 +5,13 @@ fastapi
 uvicorn[standard]
 
 # -------------------------
+# Database (PostgreSQL + PostGIS)
+# -------------------------
+sqlalchemy
+geoalchemy2
+psycopg2-binary
+
+# -------------------------
 # Data & ML
 # -------------------------
 pandas
@@ -12,7 +19,7 @@ numpy
 scikit-learn
 
 # -------------------------
-# Geospatial
+# Geospatial (Python-side)
 # -------------------------
 geopandas
 shapely
@@ -20,13 +27,7 @@ pyproj
 fiona
 
 # -------------------------
-# Visualization
+# Google Earth Engine
 # -------------------------
-matplotlib
-
-# -------------------------
-# Optional (Earth Engine & Geemap)
-# Uncomment ONLY if running GEE extraction inside backend
-# -------------------------
-# earthengine-api
-# geemap
+earthengine-api
+geemap
