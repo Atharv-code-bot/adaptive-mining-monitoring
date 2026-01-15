@@ -198,7 +198,7 @@ AnalysisPage Loads
 ### Environment Setup
 File: `frontend/.env.local`
 ```env
-VITE_GOOGLE_MAPS_API_KEY=AIzaSyAeMTML44bJdiNsebRNyUYhoiQYHVtD2Ek
+VITE_GOOGLE_MAPS_API_KEY=your_api_key
 VITE_API_URL=http://localhost:8000
 ```
 
