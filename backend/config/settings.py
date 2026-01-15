@@ -8,7 +8,7 @@ from pathlib import Path
 # ----------------------------------
 GEE_PROJECT = os.getenv(
     "GEE_PROJECT",
-    "aurora-ee-project"   # default for local dev
+    "monolith-484408"   # default for local dev
 )
 
 # ----------------------------------
