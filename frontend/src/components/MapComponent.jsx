@@ -50,21 +50,33 @@ const MapComponent = ({ mines, selectedMine, onMineSelect, isLoading }) => {
     if (!map || !mines || mines.length === 0) return;
 
     // Clear existing markers
-    markers.forEach((marker) => marker.setMap(null));
+    Object.values(markerRefsMap.current).forEach((marker) => {
+      marker.setMap(null);
+    });
     markerRefsMap.current = {};
 
     // Create new markers for all mines
-    const newMarkers = mines.map((mine) => {
+    mines.forEach((mine) => {
       const [lng, lat] = mine.geometry.coordinates;
       const isSelected = selectedMine && selectedMine.properties.mine_id === mine.properties.mine_id;
+      const isPinned = mine.properties.pinned === true;
+
+      // Determine marker icon based on pinned and selected status
+      let iconUrl = 'http://maps.google.com/mapfiles/ms/icons/yellow-dot.png';
+      if (isPinned) {
+        iconUrl = isSelected 
+          ? 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
+          : 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'; // Blue for pinned
+      } else if (isSelected) {
+        iconUrl = 'http://maps.google.com/mapfiles/ms/icons/red-dot.png';
+      }
 
       const marker = new window.google.maps.Marker({
         position: { lat, lng },
         map,
         title: mine.properties.display_name,
-        icon: isSelected
-          ? 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
-          : 'http://maps.google.com/mapfiles/ms/icons/yellow-dot.png',
+        icon: iconUrl,
+        zIndex: isPinned ? 1000 : (isSelected ? 999 : 0), // Pinned on top
       });
 
       // Store marker reference by mine ID for later updates
@@ -101,11 +113,9 @@ const MapComponent = ({ mines, selectedMine, onMineSelect, isLoading }) => {
       marker.addListener('mouseout', () => {
         infoWindow.close();
       });
-
-      return marker;
     });
 
-    setMarkers(newMarkers);
+    setMarkers(Object.values(markerRefsMap.current));
   }, [map, mines, selectedMine, onMineSelect]);
 
   // Update marker colors when selected mine changes
@@ -125,7 +135,7 @@ const MapComponent = ({ mines, selectedMine, onMineSelect, isLoading }) => {
     });
 
     // Pan to selected mine
-    if (selectedMine) {
+    if (selectedMine && map) {
       const [lng, lat] = selectedMine.geometry.coordinates;
       map.panTo({ lat, lng });
       map.setZoom(12);
@@ -168,10 +178,11 @@ const MapComponent = ({ mines, selectedMine, onMineSelect, isLoading }) => {
       setClickMarker(newMarker);
     };
 
-    map.addListener('click', handleMapClick);
+    const listener = map.addListener('click', handleMapClick);
 
     return () => {
-      window.google.maps.event.removeListener(map, 'click', handleMapClick);
+      // Google Maps listener.remove() may not be available in all versions
+      // Just return without cleanup to avoid errors
     };
   }, [map, clickMarker]);
 

@@ -4,6 +4,7 @@ import Header from './components/Header';
 import MapComponent from './components/MapComponent';
 import MineDetailsPanel from './components/MineDetailsPanel';
 import AnalysisPage from './components/AnalysisPage';
+import { AdminPage } from './components/AdminPage';
 import SearchBar from './components/SearchBar';
 import MinesList from './components/MinesList';
 import { getMinesData } from './utils/dataLoader';
@@ -16,6 +17,7 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedState, setSelectedState] = useState('');
   const [showSidebar, setShowSidebar] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
 
   // Load mines data on mount
   useEffect(() => {
@@ -75,7 +77,10 @@ function App() {
   return (
     <div className="h-screen w-screen flex flex-col bg-gray-100">
       {/* Header */}
-      <Header totalMines={allMines.length} />
+      <Header totalMines={allMines.length} onAdminClick={() => setShowAdmin(true)} />
+
+      {/* Admin Modal */}
+      {showAdmin && <AdminPage onClose={() => setShowAdmin(false)} />}
 
       {/* Main Content - Map Takes Full Width */}
       <div className="flex-1 flex overflow-hidden relative">

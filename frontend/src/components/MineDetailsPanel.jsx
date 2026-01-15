@@ -10,20 +10,20 @@ const MineDetailsPanel = ({ mine, onClose, onAnalysis }) => {
   const [lng, lat] = geometry.coordinates;
 
   return (
-    <div className="absolute bottom-4 right-4 w-96 max-w-[calc(100vw-2rem)] h-[calc(100vh-2rem)] bg-white rounded-lg shadow-2xl overflow-hidden z-10 animate-slideIn flex flex-col">
+    <div className="absolute bottom-4 right-4 w-96 max-w-[calc(100vw-2rem)] h-[calc(100vh-2rem)] bg-white rounded-2xl shadow-2xl overflow-hidden z-50 animate-slideIn flex flex-col border border-slate-100">
       {/* Header with close button */}
-      <div className="bg-linear-to-r from-blue-600 to-blue-700 px-6 py-3 flex items-center justify-between shrink-0 gap-3">
-        <h2 className="text-lg font-bold text-white truncate flex-1">{properties.display_name}</h2>
+      <div className="bg-gradient-to-r from-slate-800 to-slate-900 px-6 py-4 flex items-center gap-3 shrink-0 border-b-2 border-emerald-500">
+        <h2 className="text-lg font-bold text-white truncate flex-1 min-w-0">{properties.display_name}</h2>
         <button
           onClick={() => onAnalysis(mine)}
-          className="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1 whitespace-nowrap"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded-lg text-xs font-semibold transition flex items-center gap-1 whitespace-nowrap flex-shrink-0 shadow-md hover:shadow-lg"
           title="Open detailed analysis on full page"
         >
-          📊 Analysis
+          📊 Analyze
         </button>
         <button
           onClick={onClose}
-          className="text-white hover:bg-blue-800 rounded-full w-7 h-7 flex items-center justify-center transition flex-shrink-0"
+          className="text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg w-8 h-8 flex items-center justify-center transition flex-shrink-0 text-lg leading-none"
           aria-label="Close details"
         >
           ✕
@@ -31,23 +31,23 @@ const MineDetailsPanel = ({ mine, onClose, onAnalysis }) => {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 bg-gray-50 shrink-0">
+      <div className="flex border-b border-slate-200 bg-slate-50 shrink-0">
         <button
           onClick={() => setActiveTab('info')}
-          className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition ${
+          className={`flex-1 px-4 py-3 text-sm font-semibold border-b-2 transition ${
             activeTab === 'info'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-gray-600 hover:text-gray-800'
+              ? 'border-emerald-500 text-emerald-600'
+              : 'border-transparent text-slate-600 hover:text-slate-800'
           }`}
         >
           📋 Mine Info
         </button>
         <button
           onClick={() => setActiveTab('spectral')}
-          className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition ${
+          className={`flex-1 px-4 py-3 text-sm font-semibold border-b-2 transition ${
             activeTab === 'spectral'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-gray-600 hover:text-gray-800'
+              ? 'border-emerald-500 text-emerald-600'
+              : 'border-transparent text-slate-600 hover:text-slate-800'
           }`}
         >
           📊 NDVI vs NBR
@@ -81,6 +81,14 @@ const MineDetailsPanel = ({ mine, onClose, onAnalysis }) => {
           <p className="text-xs text-gray-600 uppercase tracking-wide font-semibold">Sub-district</p>
           <p className="text-lg font-semibold text-purple-600 mt-1">{properties.subdistrict}</p>
         </div>
+
+        {/* Analyze Button */}
+        <button
+          onClick={() => onAnalysis(mine)}
+          className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition flex items-center justify-center gap-2 text-base shadow-md"
+        >
+          📊 Analyze This Mine
+        </button>
 
         {/* Coordinates */}
         <div className="bg-gray-50 p-4 rounded-lg border border-gray-300">
