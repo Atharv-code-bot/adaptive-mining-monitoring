@@ -1,253 +1,205 @@
-🛰️ Adaptive Mining Activity Monitoring – Backend
+# Adaptive Mining Activity Monitoring – Backend
 
-This repository contains the backend system for the Adaptive Mining Activity Monitoring project.
+This backend implements the data ingestion, processing, storage, and querying pipeline for the Adaptive Mining Activity Monitoring System using satellite imagery and geospatial analytics.
 
-The backend performs satellite-based mining activity analysis using Google Earth Engine (Sentinel-2), applies machine-learning anomaly detection, and stores pixel-level geospatial time-series data in PostgreSQL + PostGIS.
-Processed data is then served through FastAPI APIs for fast visualization and analysis.
+---
 
-🧠 Core Idea (Very Important)
+## Backend Responsibilities
 
-Heavy computation runs ONLY on admin request
+- Fetch Sentinel-2 satellite data from Google Earth Engine
+- Sample pixel-wise time-series data at fixed 21-day intervals
+- Run anomaly detection to identify excavation activity
+- Store processed pixel data in PostgreSQL + PostGIS
+- Serve fast read-only APIs for visualization and analysis
+- Prevent duplicate computation and duplicate database inserts
 
-Processed data is stored once in database
+---
 
-User APIs NEVER trigger Earth Engine or ML
+## Backend Architecture
 
-Database becomes the single source of truth
+There are two strictly separated workflows:
 
-This avoids recomputation, improves performance, and ensures reproducibility.
+### 1. Admin Workflow (Heavy, Controlled)
 
-🏗️ System Architecture (Backend)
-Admin API
-   ↓
-Google Earth Engine (Sentinel-2)
-   ↓
-Pixel-wise feature extraction (21-day windows)
-   ↓
-ML anomaly detection
-   ↓
-PostgreSQL + PostGIS (persistent storage)
-   ↓
-User API (read-only, fast)
+- Used only for ingestion and processing
+- Fetches data from Google Earth Engine
+- Runs preprocessing and ML algorithms
+- Stores results in the database
+- Smart range handling (no recomputation)
 
-🧰 Tech Stack
+### 2. User Workflow (Lightweight, Fast)
 
-Framework: FastAPI
+- Reads precomputed data from database
+- No Earth Engine calls
+- No ML execution
+- Suitable for dashboards and visualization
 
-Satellite Data: Google Earth Engine (Sentinel-2 SR Harmonized)
+---
 
-Machine Learning: Scikit-learn (Isolation Forest)
+## File Structure
 
-Database: PostgreSQL + PostGIS
+## File Structure
 
-Geospatial: GeoPandas, Shapely
-
-Language: Python 3.10+
-
-🌐 Default Ports & Access
-Service	Value
-FastAPI server	http://127.0.0.1:8000
-Swagger UI	http://127.0.0.1:8000/docs
-PostgreSQL	localhost:5432
-📁 Backend Folder Structure
+```text
 backend/
-│
+├── app.py
 ├── api/
-│   ├── admin_routes.py        # Admin-only pipeline trigger
-│   └── user_routes.py         # Read-only user APIs
-│
+│   ├── admin_routes.py
+│   └── user_routes.py
 ├── algorithms/
-│   ├── data_script.py         # GEE data extraction (21-day interval)
-│   ├── preprocess.py          # Feature preprocessing
-│   └── model.py               # ML anomaly detection
-│
+│   ├── data_script.py          # GEE data extraction (21-day interval)
+│   ├── preprocess.py           # Feature preprocessing
+│   └── model.py                # Anomaly detection logic
 ├── processing/
-│   └── admin_processor.py     # Admin pipeline orchestration
-│
+│   └── admin_processor.py      # Range-aware admin pipeline
 ├── services/
-│   ├── db_reader.py           # Database read queries
-│   ├── db_write.py            # Database insert logic
-│   ├── geo.py                 # Geometry helpers
-│   └── normalize.py           # Schema normalization
-│
+│   ├── db_reader.py            # User queries + admin range checks
+│   ├── db_write.py             # Database insertion
+│   ├── normalize.py            # Schema normalization
+│   └── geo.py                  # Geometry creation
 ├── db/
-│   └── schema.sql             # PostgreSQL + PostGIS schema
-│
+│   └── schema.sql              # PostgreSQL + PostGIS schema
 ├── config/
-│   └── settings.py            # GEE project & shapefile path
-│
-└── app.py                     # FastAPI entry point
+│   └── settings.py             # GEE & DB configuration
+├── data/
+│   └── mines_cil_polygon/
+│       └── mines_cils.shp
+└── requirements.txt
 
-⚙️ LOCAL SETUP (FOR JUDGES)
+```
 
-Follow the steps exactly in order.
-Docker is NOT required.
+---
 
-1️⃣ Python Environment Setup
-Create virtual environment
-python -m venv venv
+## Technology Stack
 
-Activate virtual environment
+- FastAPI
+- PostgreSQL
+- PostGIS
+- Google Earth Engine
+- GeoPandas
+- scikit-learn
+- SQLAlchemy
 
-Windows
+---
 
-venv\Scripts\activate
+## System Requirements
 
+- Python 3.10+
+- PostgreSQL 14+
+- PostGIS 3+
+- Internet connection (for Google Earth Engine)
 
-Linux / macOS
+---
 
-source venv/bin/activate
+## PostgreSQL & PostGIS Setup
 
-Install dependencies
-pip install -r requirements.txt
-
-2️⃣ PostgreSQL + PostGIS Setup
-Install PostgreSQL
+### Install PostgreSQL
 
 Download from:
-👉 https://www.postgresql.org/download/
+https://www.postgresql.org/download/
 
-During installation:
+---
 
-Keep default port: 5432
+### Create Database and User
 
-Set postgres password (any value)
-
-Database Credentials (IMPORTANT)
-
-For simplicity and reproducibility, this project uses:
-
-Item	Value
-Database	aurora_db
-User	aurora
-Password	aurora
-Host	localhost
-Port	5432
-
-Judges are expected to use password = aurora
-
-Create database & user
-psql -U postgres
+Open `psql` and run:
 
 CREATE DATABASE aurora_db;
+
 CREATE USER aurora WITH PASSWORD 'aurora';
+
 GRANT ALL PRIVILEGES ON DATABASE aurora_db TO aurora;
-\q
 
-Enable PostGIS
-psql -U aurora -d aurora_db
 
+Password is intentionally set to **aurora** for judge convenience.
+
+---
+
+### Enable PostGIS
+
+\c aurora_db
 CREATE EXTENSION postgis;
-SELECT PostGIS_Version();
-\q
 
-Create schema
+
+---
+
+### Create Database Schema
 
 From project root:
 
 psql -U aurora -d aurora_db -f backend/db/schema.sql
 
 
-Verify:
+---
 
-psql -U aurora -d aurora_db
-\d pixel_timeseries;
-\q
+## Google Earth Engine Setup
 
-3️⃣ Google Earth Engine (GEE) Setup
-Step 1: Enable Earth Engine
+### Create GEE Account
 
-Visit: https://earthengine.google.com/
+https://earthengine.google.com/
 
-Sign in with Google account
+---
 
-Request access (usually instant)
+### Enable Earth Engine API
 
-Step 2: Create Google Cloud Project
+- Create a Google Cloud Project
+- Enable Earth Engine API
+- Copy the project ID
 
-Visit: https://console.cloud.google.com/
+---
 
-Create a new project
+### Authenticate Locally
 
-Copy the Project ID
-
-Step 3: Authenticate Earth Engine (One-time)
 earthengine authenticate
 
 
-A browser window will open → approve access.
+A browser window will open for authorization.
 
-Step 4: Configure backend
+---
 
-Edit backend/config/settings.py:
+## Backend Configuration
+
+Edit `backend/config/settings.py`:
 
 GEE_PROJECT = "your-gee-project-id"
+
 SHAPEFILE_PATH = "backend/data/mines_cil_polygon/mines_cils.shp"
 
-4️⃣ Start Backend Server
+DB_URL = "postgresql://aurora:aurora@localhost:5432/aurora_db"
+
+
+---
+
+## Python Environment Setup
+
+python -m venv venv
+
+
+Activate:
+
+venv\Scripts\activate # Windows
+source venv/bin/activate # Linux / Mac
+
+
+Install dependencies:
+
+pip install -r requirements.txt
+
+
+---
+
+## Running the Backend
+
+Default port: **8000**
+
 uvicorn backend.app:app --reload
 
 
-Server runs at:
+Open:
 
-http://127.0.0.1:8000
+- API Docs: http://127.0.0.1:8000/docs
+- Health Check: http://127.0.0.1:8000/health
 
-
-Health check:
-
-curl http://127.0.0.1:8000/health
+---
 
 
-Expected:
-
-{"status":"running"}
-
-🚀 API USAGE
-🔐 Admin API (Heavy Processing)
-Purpose
-
-Fetch Sentinel-2 data
-
-Run ML anomaly detection
-
-Store pixel-wise results in database
-
-Avoid duplicate recomputation
-
-Endpoint
-POST /admin/run
-
-Parameters
-Name	Type
-mine_id	integer
-start_date	YYYY-MM-DD
-end_date	YYYY-MM-DD
-Example
-curl -X POST \
-"http://127.0.0.1:8000/admin/run?mine_id=0&start_date=2025-01-01&end_date=2025-06-01"
-
-Behavior (Important)
-Case	Result
-All data already exists	Skipped
-Partial overlap	Only missing range processed
-New request	Full processing
-👤 User API (Read-Only)
-Purpose
-
-Fetch stored mining data
-
-No Earth Engine
-
-No ML execution
-
-Endpoint
-GET /mine/pixels
-
-Parameters
-Name	Type
-mine_id	integer
-start	YYYY-MM-DD
-end	YYYY-MM-DD
-Example
-curl \
-"http://127.0.0.1:8000/mine/pixels?mine_id=0&start=2025-01-01&end=2025-05-15"
