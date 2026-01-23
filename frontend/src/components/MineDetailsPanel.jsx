@@ -10,20 +10,20 @@ const MineDetailsPanel = ({ mine, onClose, onAnalysis }) => {
   const [lng, lat] = geometry.coordinates;
 
   return (
-    <div className="absolute bottom-4 right-4 w-96 max-w-[calc(100vw-2rem)] h-[calc(100vh-2rem)] bg-white rounded-2xl shadow-2xl overflow-hidden z-50 animate-slideIn flex flex-col border border-slate-100">
+    <div className="absolute bottom-4 right-4 w-96 max-w-[calc(100vw-2rem)] h-[calc(100vh-2rem)] elegant-card bg-white rounded-lg shadow-sm overflow-hidden z-50 animate-fadeIn flex flex-col border border-[#E4E2DE]">
       {/* Header with close button */}
-      <div className="bg-gradient-to-r from-slate-800 to-slate-900 px-6 py-4 flex items-center gap-3 shrink-0 border-b-2 border-emerald-500">
-        <h2 className="text-lg font-bold text-white truncate flex-1 min-w-0">{properties.display_name}</h2>
+      <div className="elegant-card bg-[#F7F6F4] px-4 py-3 flex items-center gap-2 shrink-0 border-b border-[#E4E2DE]">
+        <h2 className="text-base font-semibold text-[#1F2328] truncate flex-1 min-w-0">{properties.display_name}</h2>
         <button
           onClick={() => onAnalysis(mine)}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded-lg text-xs font-semibold transition flex items-center gap-1 whitespace-nowrap flex-shrink-0 shadow-md hover:shadow-lg"
+          className="bg-[#3A5F7D] hover:bg-[#2F4A65] text-white px-2 py-1 rounded text-xs font-medium transition flex items-center gap-1 whitespace-nowrap flex-shrink-0 border border-[#3A5F7D]"
           title="Open detailed analysis on full page"
         >
           📊 Analyze
         </button>
         <button
           onClick={onClose}
-          className="text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg w-8 h-8 flex items-center justify-center transition flex-shrink-0 text-lg leading-none"
+          className="text-[#6B6F76] hover:text-[#1F2328] hover:bg-[#E8E6E1] rounded w-7 h-7 flex items-center justify-center transition flex-shrink-0 text-lg leading-none border border-[#E4E2DE]"
           aria-label="Close details"
         >
           ✕
@@ -31,76 +31,76 @@ const MineDetailsPanel = ({ mine, onClose, onAnalysis }) => {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-200 bg-slate-50 shrink-0">
+      <div className="flex border-b border-[#E4E2DE] bg-white shrink-0">
         <button
           onClick={() => setActiveTab('info')}
-          className={`flex-1 px-4 py-3 text-sm font-semibold border-b-2 transition ${
+          className={`flex-1 px-4 py-2 text-sm font-medium border-b-2 transition ${
             activeTab === 'info'
-              ? 'border-emerald-500 text-emerald-600'
-              : 'border-transparent text-slate-600 hover:text-slate-800'
+              ? 'border-[#3A5F7D] text-[#3A5F7D]'
+              : 'border-transparent text-[#6B6F76] hover:text-[#1F2328]'
           }`}
         >
-          📋 Mine Info
+          Mine Info
         </button>
         <button
           onClick={() => setActiveTab('spectral')}
-          className={`flex-1 px-4 py-3 text-sm font-semibold border-b-2 transition ${
+          className={`flex-1 px-4 py-2 text-sm font-medium border-b-2 transition ${
             activeTab === 'spectral'
-              ? 'border-emerald-500 text-emerald-600'
-              : 'border-transparent text-slate-600 hover:text-slate-800'
+              ? 'border-[#3A5F7D] text-[#3A5F7D]'
+              : 'border-transparent text-[#6B6F76] hover:text-[#1F2328]'
           }`}
         >
-          📊 NDVI vs NBR
+          Spectral Data
         </button>
       </div>
 
       {/* Details Content */}
       <div className="flex-1 overflow-hidden">
         {activeTab === 'info' ? (
-          <div className="p-6 space-y-4 overflow-y-auto h-full custom-scrollbar">
+          <div className="p-4 space-y-3 overflow-y-auto h-full custom-scrollbar">
         {/* Mine ID */}
-        <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
-          <p className="text-xs text-gray-600 uppercase tracking-wide font-semibold">Mine ID</p>
-          <p className="text-lg font-semibold text-orange-600 mt-1">{properties.mine_id}</p>
+        <div className="elegant-card bg-[#F7F6F4] p-3 rounded border border-[#E4E2DE]">
+          <p className="text-xs text-[#6B6F76] uppercase tracking-wide font-medium">Mine ID</p>
+          <p className="text-lg font-semibold text-[#3A5F7D] mt-1">{properties.mine_id}</p>
         </div>
 
         {/* State */}
-        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-          <p className="text-xs text-gray-600 uppercase tracking-wide font-semibold">State</p>
-          <p className="text-lg font-semibold text-blue-600 mt-1">{properties.state}</p>
+        <div className="elegant-card bg-[#F7F6F4] p-3 rounded border border-[#E4E2DE]">
+          <p className="text-xs text-[#6B6F76] uppercase tracking-wide font-medium">State</p>
+          <p className="text-lg font-semibold text-[#1F2328] mt-1">{properties.state}</p>
         </div>
 
         {/* District */}
-        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-          <p className="text-xs text-gray-600 uppercase tracking-wide font-semibold">District</p>
-          <p className="text-lg font-semibold text-green-600 mt-1">{properties.district}</p>
+        <div className="elegant-card bg-[#F7F6F4] p-3 rounded border border-[#E4E2DE]">
+          <p className="text-xs text-[#6B6F76] uppercase tracking-wide font-medium">District</p>
+          <p className="text-lg font-semibold text-[#1F2328] mt-1">{properties.district}</p>
         </div>
 
         {/* Sub-district */}
-        <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-          <p className="text-xs text-gray-600 uppercase tracking-wide font-semibold">Sub-district</p>
-          <p className="text-lg font-semibold text-purple-600 mt-1">{properties.subdistrict}</p>
+        <div className="elegant-card bg-[#F7F6F4] p-3 rounded border border-[#E4E2DE]">
+          <p className="text-xs text-[#6B6F76] uppercase tracking-wide font-medium">Sub-district</p>
+          <p className="text-lg font-semibold text-[#1F2328] mt-1">{properties.subdistrict}</p>
         </div>
 
         {/* Analyze Button */}
         <button
           onClick={() => onAnalysis(mine)}
-          className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition flex items-center justify-center gap-2 text-base shadow-md"
+          className="w-full bg-[#3A5F7D] hover:bg-[#2F4A65] text-white font-semibold py-2 px-3 rounded transition flex items-center justify-center gap-2 text-sm border border-[#3A5F7D]"
         >
-          📊 Analyze This Mine
+          ⚙️ Analyze This Mine
         </button>
 
         {/* Coordinates */}
-        <div className="bg-gray-50 p-4 rounded-lg border border-gray-300">
-          <p className="text-xs text-gray-600 uppercase tracking-wide font-semibold mb-3">Coordinates</p>
-          <div className="space-y-2">
+        <div className="elegant-card bg-[#F7F6F4] p-3 rounded border border-[#E4E2DE]">
+          <p className="text-xs text-[#6B6F76] uppercase tracking-wide font-medium mb-2">Coordinates</p>
+          <div className="space-y-1">
             <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-700">Latitude:</span>
-              <span className="text-sm text-gray-900 font-mono">{lat.toFixed(6)}</span>
+              <span className="text-sm font-medium text-[#6B6F76]">Latitude:</span>
+              <span className="text-sm text-[#1F2328] font-mono font-medium">{lat.toFixed(6)}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-700">Longitude:</span>
-              <span className="text-sm text-gray-900 font-mono">{lng.toFixed(6)}</span>
+              <span className="text-sm font-medium text-[#6B6F76]">Longitude:</span>
+              <span className="text-sm text-[#1F2328] font-mono font-medium">{lng.toFixed(6)}</span>
             </div>
           </div>
         </div>

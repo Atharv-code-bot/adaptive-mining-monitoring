@@ -30,7 +30,7 @@ const KPIDashboard = ({ mineId }) => {
     return (
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="bg-gray-200 rounded-lg h-24 animate-pulse"></div>
+          <div key={i} className="bg-[#F7F6F4] rounded-lg h-24 animate-pulse border border-[#E4E2DE]"></div>
         ))}
       </div>
     );
@@ -38,7 +38,7 @@ const KPIDashboard = ({ mineId }) => {
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+      <div className="bg-[#FFF5F5] border border-[#FCE2E2] rounded-lg p-4 text-[#8B7A5E]">
         <p className="font-semibold">Error loading KPI</p>
         <p className="text-sm">{error}</p>
       </div>
@@ -46,7 +46,7 @@ const KPIDashboard = ({ mineId }) => {
   }
 
   if (!kpi) {
-    return <div className="text-gray-500 text-center py-8">No KPI data available</div>;
+    return <div className="text-[#6B6F76] text-center py-8 font-medium">No KPI data available</div>;
   }
 
   const metrics = [
@@ -83,11 +83,11 @@ const KPIDashboard = ({ mineId }) => {
   ];
 
   const colorClasses = {
-    blue: 'bg-blue-50 border-blue-200 text-blue-700',
-    red: 'bg-red-50 border-red-200 text-red-700',
-    green: 'bg-green-50 border-green-200 text-green-700',
-    orange: 'bg-orange-50 border-orange-200 text-orange-700',
-    purple: 'bg-purple-50 border-purple-200 text-purple-700'
+    blue: 'bg-white border-[#E4E2DE] text-[#3A5F7D]',
+    red: 'bg-white border-[#E4E2DE] text-[#8B7A5E]',
+    green: 'bg-white border-[#E4E2DE] text-[#3A5F7D]',
+    orange: 'bg-white border-[#E4E2DE] text-[#8B7A5E]',
+    purple: 'bg-white border-[#E4E2DE] text-[#3A5F7D]'
   };
 
   return (
@@ -96,20 +96,20 @@ const KPIDashboard = ({ mineId }) => {
         {metrics.map((metric, index) => (
           <div
             key={index}
-            className={`${colorClasses[metric.color]} border rounded-lg p-4 transition hover:shadow-md`}
+            className={`${colorClasses[metric.color]} border rounded-lg p-3 transition hover:border-[#BFB9B0]`}
           >
             <div className="text-2xl mb-2">{metric.icon}</div>
-            <p className="text-xs uppercase tracking-wide font-semibold opacity-70">
+            <p className="text-xs uppercase tracking-wide font-medium text-[#6B6F76]">
               {metric.title}
             </p>
-            <p className="text-lg font-bold mt-1">{metric.value}</p>
+            <p className="text-base font-semibold mt-1 text-[#1F2328]">{metric.value}</p>
           </div>
         ))}
       </div>
 
       {kpi.date_range && (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-600">
-          <span className="font-semibold">Data Range:</span> {kpi.date_range.start} to {kpi.date_range.end}
+        <div className="bg-[#F7F6F4] border border-[#E4E2DE] rounded-lg p-3 text-sm text-[#6B6F76]">
+          <span className="font-medium">Data Range:</span> {kpi.date_range.start} to {kpi.date_range.end}
         </div>
       )}
     </div>

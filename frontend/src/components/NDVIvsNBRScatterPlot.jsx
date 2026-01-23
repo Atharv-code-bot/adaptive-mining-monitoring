@@ -4,8 +4,12 @@ import '../styles/Charts.css';
 
 export function NDVIvsNBRScatterPlot({ mineData }) {
   const chartData = useMemo(() => {
-    if (!mineData || !Array.isArray(mineData) || mineData.length === 0) return [];
-    return mineData.map(p => {
+    if (!mineData || !Array.isArray(mineData) || mineData.length === 0) {
+      console.warn('NDVIvsNBRScatterPlot: No mineData provided', mineData);
+      return [];
+    }
+    console.log('NDVIvsNBRScatterPlot: Processing', mineData.length, 'data points');
+    const processed = mineData.map(p => {
       if (!p) return null;
       const ndvi = typeof p.ndvi === 'number' ? parseFloat(p.ndvi.toFixed(3)) : 0;
       const nbr = typeof p.nbr === 'number' ? parseFloat(p.nbr.toFixed(3)) : 0;
@@ -18,6 +22,8 @@ export function NDVIvsNBRScatterPlot({ mineData }) {
         color: p.anomaly_label === 1 ? '#ef4444' : '#22c55e'
       };
     }).filter(d => d !== null);
+    console.log('NDVIvsNBRScatterPlot: Final chart data:', processed);
+    return processed;
   }, [mineData]);
 
   const CustomTooltip = ({ active, payload }) => {
@@ -47,29 +53,39 @@ export function NDVIvsNBRScatterPlot({ mineData }) {
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={400}>
-          <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }} data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" />
+          <ScatterChart 
+            margin={{ top: 20, right: 20, bottom: 20, left: 60 }}
+            data={chartData}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="#ccc" />
             <XAxis 
+              type="number"
               dataKey="ndvi" 
               name="NDVI"
-              label={{ value: 'NDVI', position: 'insideBottomRight', offset: -5 }}
+              domain={[-1, 3]}
+              label={{ value: 'NDVI', position: 'insideBottomRight', offset: -10 }}
             />
             <YAxis 
+              type="number"
+              dataKey="nbr" 
               name="NBR"
+              domain={[-1, 1]}
               label={{ value: 'NBR', angle: -90, position: 'insideLeft' }}
             />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }} />
             <Legend />
             <Scatter
               name="Excavated"
               data={chartData.filter(d => d.anomaly === 'Excavated')}
               fill="#ef4444"
+              shape="circle"
               isAnimationActive={false}
             />
             <Scatter
               name="Normal"
               data={chartData.filter(d => d.anomaly === 'Normal')}
               fill="#22c55e"
+              shape="circle"
               isAnimationActive={false}
             />
           </ScatterChart>

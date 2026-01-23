@@ -107,7 +107,11 @@ def run_anomaly_detection(df: pd.DataFrame):
         crs="EPSG:4326"
     )
 
-    veg_polygon = veg_gdf.buffer(0.0005).unary_union
+    # Convert to projected CRS for accurate buffer operation
+    veg_gdf_projected = veg_gdf.to_crs("EPSG:3857")
+    veg_polygon = veg_gdf_projected.buffer(0.0005).unary_union.simplify(0.00001)
+    # Convert back to geographic CRS
+    veg_polygon = gpd.GeoSeries([veg_polygon], crs="EPSG:3857").to_crs("EPSG:4326")[0]
 
     veg_zone = gpd.GeoDataFrame(
         {'zone_type': ['Synthetic Forest Protection Zone']},
@@ -136,7 +140,11 @@ def run_anomaly_detection(df: pd.DataFrame):
         crs="EPSG:4326"
     )
 
-    water_polygon = water_gdf.buffer(0.0005).unary_union
+    # Convert to projected CRS for accurate buffer operation
+    water_gdf_projected = water_gdf.to_crs("EPSG:3857")
+    water_polygon = water_gdf_projected.buffer(0.0005).unary_union.simplify(0.00001)
+    # Convert back to geographic CRS
+    water_polygon = gpd.GeoSeries([water_polygon], crs="EPSG:3857").to_crs("EPSG:4326")[0]
 
     water_zone = gpd.GeoDataFrame(
         {'zone_type': ['Synthetic Water Protection Zone']},

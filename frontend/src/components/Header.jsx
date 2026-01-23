@@ -2,19 +2,21 @@ import React from 'react';
 
 const Header = ({ totalMines, onAdminClick }) => {
   return (
-    <header className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-900 text-white p-6 shadow-2xl z-30 border-b-4 border-emerald-500">
+    <header className="elegant-card bg-white border-b border-[#E4E2DE] px-6 py-4 z-30 m-2 rounded-lg">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div>
-          <h1 className="text-4xl font-black mb-2 tracking-tight">⛏️ Adaptive Mining Monitor</h1>
-          <p className="text-slate-300 text-sm">
-            Advanced satellite monitoring for {totalMines || 0} mining sites across India
+          <h1 className="text-3xl font-bold mb-1 tracking-tight text-[#1F2328]">
+            ⛏️ Adaptive Mining Monitor
+          </h1>
+          <p className="text-[#6B6F76] text-sm font-normal">
+            Advanced satellite monitoring • {totalMines || 0} sites • Real-time analysis
           </p>
         </div>
         <button
           onClick={onAdminClick}
-          className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold transition flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+          className="px-6 py-2 bg-[#3A5F7D] hover:bg-[#2F4A65] text-white rounded-lg font-medium transition flex items-center gap-2 border border-[#3A5F7D] active:opacity-90"
         >
-          🔧 Admin Panel
+          ⚙️ Admin Panel
         </button>
       </div>
     </header>

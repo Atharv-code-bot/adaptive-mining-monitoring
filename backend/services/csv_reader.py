@@ -1,5 +1,5 @@
 # backend/services/csv_reader.py
-# Fallback service to read data from CSV when database is not available
+# Legacy fallback service - data should come from database after pipeline execution
 
 import pandas as pd
 import os
@@ -10,7 +10,10 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 CSV_PATH = BASE_DIR / "frontend" / "src" / "data" / "pixel_timeseries (1).csv"
 
 def fetch_pixels_from_csv(mine_id: int, start_date: str, end_date: str):
-    """Fetch pixel-level spectral data from CSV file"""
+    """
+    Legacy method: Fetch pixel-level spectral data from CSV file
+    Note: This should only be used for testing. Production data comes from database after pipeline execution.
+    """
     try:
         # Read the CSV file
         df = pd.read_csv(CSV_PATH)
@@ -19,6 +22,13 @@ def fetch_pixels_from_csv(mine_id: int, start_date: str, end_date: str):
         df = df[df['mine_id'] == mine_id]
         
         if df.empty:
+            print(f"⚠️  No data found in CSV for mine_id {mine_id}")
+            print("   To view analysis data:")
+            print("   1. Go to Admin Panel")
+            print("   2. Select this mine")
+            print("   3. Select a date range")
+            print("   4. Click 'Run Pipeline'")
+            print("   5. Wait for processing to complete")
             return pd.DataFrame()
         
         # Convert date column to datetime

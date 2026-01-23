@@ -13,19 +13,22 @@ def fetch_mine_pixel_timeseries_df(
 ) -> pd.DataFrame:
     """
     Fetch pixel-wise Sentinel-2 time series from GEE
-    at a FIXED INTERVAL of 21 days (NO CSV).
+    at ~21-day intervals using nearest available acquisition.
+
+    SAFE against empty date windows.
     """
+
+    print("\n[DEBUG] GEE FETCH STARTED")
+    print(f"[DEBUG] mine_index={mine_index}, start={start_date}, end={end_date}")
 
     # --------------------------------------------------
     # 0️⃣ Safety check
     # --------------------------------------------------
     if not os.path.exists(shapefile_path):
-        raise FileNotFoundError(
-            f"Shapefile not found at: {shapefile_path}"
-        )
+        raise FileNotFoundError(f"Shapefile not found: {shapefile_path}")
 
     # --------------------------------------------------
-    # 1️⃣ Initialize GEE
+    # 1️⃣ Initialize Earth Engine
     # --------------------------------------------------
     try:
         ee.Initialize(project=gee_project)
@@ -34,29 +37,28 @@ def fetch_mine_pixel_timeseries_df(
         ee.Initialize(project=gee_project)
 
     # --------------------------------------------------
-    # 2️⃣ Load mine polygon
+    # 2️⃣ Load mine geometry
     # --------------------------------------------------
     gdf = gpd.read_file(shapefile_path)
     mine_row = gdf.iloc[mine_index]
     mine_id = mine_row.get("mine_id", mine_index)
-
     mine_geom = ee.Geometry(mine_row.geometry.__geo_interface__)
 
     # --------------------------------------------------
-    # 3️⃣ Cloud masking using SCL
+    # 3️⃣ Cloud masking
     # --------------------------------------------------
     def mask_s2_clouds(img):
         scl = img.select("SCL")
         mask = (
-            scl.neq(3)
-            .And(scl.neq(8))
-            .And(scl.neq(9))
-            .And(scl.neq(10))
+            scl.neq(3)    # cloud shadow
+            .And(scl.neq(8))   # cloud
+            .And(scl.neq(9))   # cirrus
+            .And(scl.neq(10))  # high prob cloud
         )
         return img.updateMask(mask)
 
     # --------------------------------------------------
-    # 4️⃣ Add spectral indices
+    # 4️⃣ Add indices
     # --------------------------------------------------
     def add_indices(img):
         ndvi = img.normalizedDifference(["B8", "B4"]).rename("NDVI")
@@ -70,34 +72,39 @@ def fetch_mine_pixel_timeseries_df(
         )
 
     # --------------------------------------------------
-    # 5️⃣ Helper: filter ImageCollection at fixed interval
+    # 5️⃣ SAFE 21-day sampler (NO EMPTY COLLECTIONS)
     # --------------------------------------------------
-    def filter_by_interval(ic, start_date, end_date, step_days=21):
+    def safe_21day_sampler(ic, start_date, end_date, step=21, search=30):
         start = ee.Date(start_date)
         end = ee.Date(end_date)
 
-        offsets = ee.List.sequence(
-            0,
-            end.difference(start, "day"),
-            step_days
-        )
+        day_diff = end.difference(start, "day")
+        offsets = ee.List.sequence(0, day_diff, step)
 
-        def pick_best(day_offset):
-            date = start.advance(day_offset, "day")
-            return (
-                ic.filterDate(date, date.advance(1, "day"))
-                  .sort("CLOUDY_PIXEL_PERCENTAGE")
-                  .first()
+        print("[DEBUG] Building 21-day sampling windows")
+
+        def pick(offset):
+            base = start.advance(offset, "day")
+            candidates = ic.filterDate(
+                base,
+                base.advance(search, "day")
             )
 
-        images = offsets.map(pick_best)
+            return ee.Algorithms.If(
+                candidates.size().gt(0),
+                candidates.sort("CLOUDY_PIXEL_PERCENTAGE").first(),
+                ee.Image()  # ✅ EMPTY IMAGE (SAFE)
+            )
 
+        images = offsets.map(pick)
+
+        # Keep only real Sentinel-2 images
         return ee.ImageCollection(images).filter(
-            ee.Filter.notNull(["system:time_start"])
+            ee.Filter.listContains("system:band_names", "B4")
         )
 
     # --------------------------------------------------
-    # 6️⃣ Fetch Sentinel-2 (21-day interval)
+    # 6️⃣ Fetch Sentinel-2
     # --------------------------------------------------
     raw_s2 = (
         ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
@@ -107,38 +114,80 @@ def fetch_mine_pixel_timeseries_df(
     )
 
     s2 = (
-        filter_by_interval(raw_s2, start_date, end_date, step_days=21)
+        safe_21day_sampler(raw_s2, start_date, end_date)
           .map(mask_s2_clouds)
           .map(add_indices)
     )
 
+    print("[DEBUG] Sentinel-2 images selected (server-side)")
+
     # --------------------------------------------------
-    # 7️⃣ Pixel-wise sampling
+    # 7️⃣ SAFE pixel sampling
     # --------------------------------------------------
     def sample_pixels(img):
-        return img.sample(
-            region=mine_geom,
+        pixel_count = img.reduceRegion(
+            reducer=ee.Reducer.count(),
+            geometry=mine_geom,
             scale=10,
-            geometries=True
-        ).map(
-            lambda f: f.set({
-                "date": img.get("date"),
-                "mine_id": img.get("mine_id"),
-                "latitude": f.geometry().coordinates().get(1),
-                "longitude": f.geometry().coordinates().get(0)
-            })
+            maxPixels=1e8
+        ).values().get(0)
+
+        return ee.FeatureCollection(
+            ee.Algorithms.If(
+                ee.Number(pixel_count).gt(0),
+                img.sample(
+                    region=mine_geom,
+                    scale=10,
+                    geometries=True
+                ).map(lambda f: f.set({
+                    "date": img.get("date"),
+                    "mine_id": img.get("mine_id"),
+                    "latitude": f.geometry().coordinates().get(1),
+                    "longitude": f.geometry().coordinates().get(0)
+                })),
+                ee.FeatureCollection([])
+            )
         )
 
-    pixel_fc = s2.map(sample_pixels).flatten()
+    pixel_fc = ee.FeatureCollection(
+        ee.Algorithms.If(
+            s2.size().gt(0),
+            s2.map(sample_pixels).flatten(),
+            ee.FeatureCollection([])
+        )
+    )
+
+    print("[DEBUG] Pixel sampling complete (server-side)")
 
     # --------------------------------------------------
-    # 8️⃣ FeatureCollection → Pandas DataFrame
+    # 8️⃣ Limit features to avoid exceeding GEE 5000 element limit
     # --------------------------------------------------
-    features = pixel_fc.getInfo()["features"]
+    # Limit to 4000 features to stay well under GEE's 5000 limit
+    pixel_fc_limited = pixel_fc.limit(4000)
+    print("[DEBUG] Feature collection limited to 4000 elements")
+
+    # --------------------------------------------------
+    # 9️⃣ Convert to Pandas DataFrame
+    # --------------------------------------------------
+    try:
+        features = pixel_fc_limited.getInfo().get("features", [])
+    except Exception as e:
+        print(f"[DEBUG] Error getting features: {e}")
+        print("[DEBUG] Reducing limit and retrying...")
+        pixel_fc_limited = pixel_fc.limit(2000)
+        features = pixel_fc_limited.getInfo().get("features", [])
+    
+    print(f"[DEBUG] Total pixels fetched: {len(features)}")
+
+    if not features:
+        print("[DEBUG] No pixels returned for this date range")
+        return pd.DataFrame()
 
     rows = [f["properties"] for f in features]
     df = pd.DataFrame(rows)
-
+    
+    print("[DEBUG] GEE FETCH COMPLETED\n")
+    
     return df
 
 

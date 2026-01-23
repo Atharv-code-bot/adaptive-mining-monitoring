@@ -8,39 +8,39 @@ const MineCard = ({ mine, isSelected, onSelect }) => {
   return (
     <div
       onClick={handleClick}
-      className={`p-4 border-2 rounded-xl cursor-pointer transition-all hover:shadow-lg ${
+      className={`p-3 border rounded-lg cursor-pointer transition-all ${
         isSelected
-          ? 'bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-500 shadow-lg'
-          : 'bg-white border-slate-200 hover:border-slate-300'
+          ? 'elegant-card bg-[#F0F4F8] border-[#3A5F7D] border-opacity-40'
+          : 'elegant-card bg-white border-[#E4E2DE] hover:border-[#D4D1CC]'
       }`}
     >
       <div className="flex items-start justify-between gap-2">
-        <h3 className="font-bold text-slate-800 mb-2 truncate flex-1">
+        <h3 className={`font-semibold mb-2 truncate flex-1 ${isSelected ? 'text-[#3A5F7D]' : 'text-[#1F2328]'}`}>
           {mine.properties.display_name}
         </h3>
         {mine.properties.pinned && (
-          <span className="inline-block bg-blue-500 text-white text-xs px-2 py-1 rounded-lg font-bold flex-shrink-0">
+          <span className="inline-block bg-[#8B7A5E] text-white text-xs px-2 py-1 rounded font-medium flex-shrink-0">
             📌
           </span>
         )}
       </div>
-      <div className="space-y-2 text-sm text-slate-700">
+      <div className={`space-y-1 text-sm ${isSelected ? 'text-[#3A5F7D]' : 'text-[#6B6F76]'}`}>
         <p>
-          <span className="font-bold text-slate-800">State:</span> {mine.properties.state}
+          <span className="font-medium text-[#1F2328]">State:</span> {mine.properties.state}
         </p>
         <p>
-          <span className="font-bold text-slate-800">District:</span> {mine.properties.district}
+          <span className="font-medium text-[#1F2328]">District:</span> {mine.properties.district}
         </p>
         <p>
-          <span className="font-bold text-slate-800">Sub-district:</span> {mine.properties.subdistrict}
+          <span className="font-medium text-[#1F2328]">Sub-district:</span> {mine.properties.subdistrict}
         </p>
-        <p className="text-xs text-slate-600 mt-2 bg-slate-50 px-2 py-1 rounded-lg">
+        <p className="text-xs mt-2 text-[#6B6F76]">
           📍 {mine.geometry.coordinates[1].toFixed(4)}, {mine.geometry.coordinates[0].toFixed(4)}
         </p>
       </div>
       {isSelected && (
-        <div className="mt-3 pt-3 border-t-2 border-emerald-300">
-          <span className="inline-block bg-gradient-to-r from-emerald-600 to-emerald-700 text-white text-xs px-3 py-1 rounded-lg font-bold">
+        <div className="mt-2 pt-2 border-t border-[#E4E2DE]">
+          <span className="inline-block bg-[#E8F1F7] text-[#3A5F7D] text-xs px-3 py-1 rounded font-medium">
             ✓ Selected
           </span>
         </div>

@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from services.db_reader import fetch_pixels, fetch_mine_details, fetch_mine_kpi
+from services.db_reader import fetch_pixels, fetch_mine_details, fetch_mine_kpi, get_violation_statistics, get_excavation_compliance
 from datetime import datetime, timedelta
 
 router = APIRouter()
@@ -24,8 +24,9 @@ def get_pixels(mine_id: str, start: str = None, end: str = None):
         
         df = fetch_pixels(mine_id, start, end)
         
+        # Always return array directly for frontend compatibility
         if df.empty:
-            return {"warning": f"No data found for mine {mine_id}", "data": []}
+            return []
         
         return df.to_dict(orient="records")
     except Exception as e:
@@ -87,3 +88,30 @@ def get_spectral_signature(mine_id: int, start: str = None, end: str = None):
     except Exception as e:
         print(f"Error in get_spectral_signature: {e}")
         return JSONResponse({"error": str(e)}, status_code=500)
+
+@router.get("/violations/{mine_id}")
+def get_violations(mine_id: int, start: str = None, end: str = None):
+    """Fetch violation statistics for a mine"""
+    try:
+        if not start:
+            start = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+        if not end:
+            end = datetime.now().strftime("%Y-%m-%d")
+        
+        return get_violation_statistics(mine_id, start, end)
+    except Exception as e:
+        print(f"Error in get_violations: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@router.get("/compliance/{mine_id}")
+def get_compliance(mine_id: int, start: str = None, end: str = None):
+    """Fetch excavation compliance data for a mine"""
+    try:
+        if not start:
+            start = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+        if not end:
+            end = datetime.now().strftime("%Y-%m-%d")
+        
+        return get_excavation_compliance(mine_id, start, end)
+    except Exception as e:
+        print(f"Error in get_compliance: {e}")
