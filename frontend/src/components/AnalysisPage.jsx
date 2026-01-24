@@ -570,7 +570,7 @@ const AnalysisPage = ({ mine, onBack }) => {
                       ⚠️ Error: {error}
                     </div>
                   ) : mineData.length > 0 ? (
-                    <NDVIHeatmap mineData={mineData} />
+                    <NDVIHeatmap mineData={mineData} selectedMine={mine} />
                   ) : (
                     <div className="text-center py-16 bg-gradient-to-b from-blue-50 to-blue-100 rounded-xl border-2 border-blue-300 p-8">
                       <div className="text-5xl mb-4">📦</div>
