@@ -1,8 +1,62 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { loadGoogleMapsScript } from '../utils/mapsUtils';
 
-export function NDVIHeatmap({ mineData }) {
+export function NDVIHeatmap({ mineData, selectedMine }) {
   const [hoveredCell, setHoveredCell] = useState(null);
+  const mapRef = useRef(null);
+  const [map, setMap] = useState(null);
+  const [mapError, setMapError] = useState(null);
   const GRID_SIZE = 20; // 20x20 grid
+
+  // Initialize Google Map
+  useEffect(() => {
+    if (!selectedMine || !mineData || mineData.length === 0 || !mapRef.current) {
+      return;
+    }
+
+    const initMap = async () => {
+      try {
+        const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+        if (!apiKey) {
+          setMapError('Google Maps API key not configured');
+          return;
+        }
+
+        await loadGoogleMapsScript(apiKey);
+
+        // Get center from mineData
+        const lats = mineData.map(p => p.latitude);
+        const lons = mineData.map(p => p.longitude);
+        const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+        const centerLon = (Math.min(...lons) + Math.max(...lons)) / 2;
+
+        const mapInstance = new window.google.maps.Map(mapRef.current, {
+          center: { lat: centerLat, lng: centerLon },
+          zoom: 14,
+          mapTypeControl: true,
+          fullscreenControl: false,
+          streetViewControl: false,
+        });
+
+        // Add marker for the mine
+        if (selectedMine.geometry) {
+          const [lng, lat] = selectedMine.geometry.coordinates;
+          new window.google.maps.Marker({
+            position: { lat, lng },
+            map: mapInstance,
+            title: selectedMine.properties.display_name,
+            icon: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+          });
+        }
+
+        setMap(mapInstance);
+      } catch (err) {
+        setMapError(err.message);
+      }
+    };
+
+    initMap();
+  }, [selectedMine, mineData]);
 
   const gridData = useMemo(() => {
     if (!mineData || mineData.length === 0) return null;
@@ -127,9 +181,9 @@ export function NDVIHeatmap({ mineData }) {
 
       {/* Grid Container */}
       <div className="flex gap-8">
-        {/* Grid */}
-        <div className="flex-1 bg-white rounded-lg shadow-md p-6 overflow-x-auto">
-          <div style={{ display: 'inline-block' }}>
+        {/* Left: Grid */}
+        <div className="flex-1 bg-white rounded-lg shadow-md p-6 overflow-x-auto flex items-center justify-center">
+          <div style={{ display: 'inline-block', transform: 'rotate(90deg)' }}>
             <div style={{ 
               display: 'grid', 
               gridTemplateColumns: `repeat(${GRID_SIZE}, ${cellSize}px)`,
@@ -160,7 +214,9 @@ export function NDVIHeatmap({ mineData }) {
                     onMouseLeave={() => setHoveredCell(null)}
                     title={cell.ndvi ? `NDVI: ${cell.ndvi.toFixed(3)}, Pixels: ${cell.pixels.length}` : 'Empty'}
                   >
-                    {cell.ndvi !== null && cell.ndvi.toFixed(2).substring(0, 4)}
+                    <span style={{ transform: 'rotate(-90deg)', display: 'inline-block' }}>
+                      {cell.ndvi !== null && cell.ndvi.toFixed(2).substring(0, 4)}
+                    </span>
                   </div>
                 ))
               )}
@@ -168,76 +224,72 @@ export function NDVIHeatmap({ mineData }) {
           </div>
         </div>
 
-        {/* Grid Stats */}
-        <div className="w-64 space-y-4">
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <h4 className="font-bold text-gray-800 mb-4">📊 Grid Stats</h4>
-            
-            <div className="space-y-4">
-              {/* Coverage */}
-              <div className="border-b pb-4">
-                <p className="text-sm font-semibold text-gray-700 mb-2">Coverage</p>
-                <div className="flex items-baseline gap-2">
-                  <p className="text-2xl font-bold text-blue-600">{stats.coverage}%</p>
-                  <p className="text-xs text-gray-600">Filled</p>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  {stats.filledCells} / {stats.totalCells} cells
-                </p>
+        {/* Right: Google Map */}
+        <div className="flex-1 bg-white rounded-lg shadow-md overflow-hidden">
+          <div 
+            ref={mapRef}
+            style={{ width: '100%', height: '630px' }}
+          >
+            {mapError && (
+              <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                <p className="text-red-600 text-sm">{mapError}</p>
               </div>
+            )}
+          </div>
+        </div>
+      </div>
 
-              {/* NDVI Range */}
-              <div className="border-b pb-4">
-                <p className="text-sm font-semibold text-gray-700 mb-2">NDVI Range</p>
-                <div className="space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Min:</span>
-                    <span className="font-mono font-semibold text-red-600">
-                      {stats.minNdvi.toFixed(3)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Max:</span>
-                    <span className="font-mono font-semibold text-green-600">
-                      {stats.maxNdvi.toFixed(3)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Mean:</span>
-                    <span className="font-mono font-semibold text-blue-600">
-                      {stats.meanNdvi.toFixed(3)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Cell Resolution */}
-              <div>
-                <p className="text-sm font-semibold text-gray-700 mb-2">Cell Resolution</p>
-                <p className="text-sm text-gray-600">Grid: {GRID_SIZE} × {GRID_SIZE}</p>
-                <p className="text-sm text-gray-600">Cell Size: {cellSize}px</p>
-              </div>
-            </div>
+      {/* Grid Stats - Below */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          {/* Coverage */}
+          <div>
+            <h4 className="text-sm font-semibold text-gray-700 mb-2">📊 Coverage</h4>
+            <p className="text-2xl font-bold text-blue-600">{stats.coverage}%</p>
+            <p className="text-xs text-gray-500 mt-1">
+              {stats.filledCells} / {stats.totalCells} cells
+            </p>
           </div>
 
-          {/* Hover Info */}
-          {hoveredCell && (
-            <div className="bg-blue-50 rounded-lg border-2 border-blue-400 p-4 animate-pulse">
-              <p className="text-xs font-semibold text-blue-700 mb-2">✨ Hover Info</p>
-              <div className="space-y-1 text-sm">
-                <p className="text-gray-700">
-                  <span className="font-semibold">Cell:</span> ({hoveredCell.row}, {hoveredCell.col})
-                </p>
-                <p className="text-gray-700">
-                  <span className="font-semibold">NDVI:</span> {hoveredCell.ndvi?.toFixed(3)}
-                </p>
-                <p className="text-gray-700">
-                  <span className="font-semibold">Pixels:</span> {hoveredCell.pixels?.length}
-                </p>
-              </div>
-            </div>
-          )}
+          {/* Min NDVI */}
+          <div>
+            <h4 className="text-sm font-semibold text-gray-700 mb-2">📉 Min NDVI</h4>
+            <p className="text-2xl font-bold text-red-600">{stats.minNdvi.toFixed(3)}</p>
+            <p className="text-xs text-gray-500 mt-1">Bare/Low vegetation</p>
+          </div>
+
+          {/* Max NDVI */}
+          <div>
+            <h4 className="text-sm font-semibold text-gray-700 mb-2">📈 Max NDVI</h4>
+            <p className="text-2xl font-bold text-green-600">{stats.maxNdvi.toFixed(3)}</p>
+            <p className="text-xs text-gray-500 mt-1">Healthy vegetation</p>
+          </div>
+
+          {/* Mean NDVI */}
+          <div>
+            <h4 className="text-sm font-semibold text-gray-700 mb-2">📊 Mean NDVI</h4>
+            <p className="text-2xl font-bold text-blue-600">{stats.meanNdvi.toFixed(3)}</p>
+            <p className="text-xs text-gray-500 mt-1">Average value</p>
+          </div>
         </div>
+
+        {/* Hover Info */}
+        {hoveredCell && (
+          <div className="mt-6 bg-blue-50 rounded-lg border-2 border-blue-400 p-4 animate-pulse">
+            <p className="text-sm font-semibold text-blue-700 mb-2">✨ Hover Info</p>
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              <p className="text-gray-700">
+                <span className="font-semibold">Cell:</span> ({hoveredCell.row}, {hoveredCell.col})
+              </p>
+              <p className="text-gray-700">
+                <span className="font-semibold">NDVI:</span> {hoveredCell.ndvi?.toFixed(3)}
+              </p>
+              <p className="text-gray-700">
+                <span className="font-semibold">Pixels:</span> {hoveredCell.pixels?.length}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Info Note */}
