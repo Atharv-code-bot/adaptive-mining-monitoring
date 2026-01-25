@@ -3,9 +3,12 @@ import { loadGoogleMapsScript } from '../utils/mapsUtils';
 
 export function NDVIHeatmap({ mineData, selectedMine }) {
   const [hoveredCell, setHoveredCell] = useState(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [overlayEnabled, setOverlayEnabled] = useState(false);
   const mapRef = useRef(null);
   const [map, setMap] = useState(null);
   const [mapError, setMapError] = useState(null);
+  const polygonsRef = useRef([]);
   const GRID_SIZE = 20; // 20x20 grid
 
   // Initialize Google Map
@@ -129,6 +132,95 @@ export function NDVIHeatmap({ mineData, selectedMine }) {
     return 'Very';
   };
 
+  // Get cell bounds for rectangle overlay
+  const getCellBounds = (rowIdx, colIdx) => {
+    if (!gridData || !gridData.bounds) return null;
+    const { minLat, maxLat, minLon, maxLon } = gridData.bounds;
+    
+    // Calculate exact cell dimensions
+    const latRange = maxLat - minLat;
+    const lonRange = maxLon - minLon;
+    
+    const cellLatHeight = latRange / GRID_SIZE;
+    const cellLonWidth = lonRange / GRID_SIZE;
+    
+    // Calculate exact bounds for this cell
+    const cellMinLat = minLat + (rowIdx * cellLatHeight);
+    const cellMaxLat = minLat + ((rowIdx + 1) * cellLatHeight);
+    const cellMinLon = minLon + (colIdx * cellLonWidth);
+    const cellMaxLon = minLon + ((colIdx + 1) * cellLonWidth);
+    
+    return {
+      north: cellMaxLat,
+      south: cellMinLat,
+      east: cellMaxLon,
+      west: cellMinLon
+    };
+  };
+
+  // Toggle NDVI overlay on map
+  const toggleOverlay = () => {
+    if (overlayEnabled) {
+      // Clear rectangles
+      polygonsRef.current.forEach(rect => rect.setMap(null));
+      polygonsRef.current = [];
+      setOverlayEnabled(false);
+    } else {
+      // Add per-cell rectangles
+      if (map && gridData) {
+        const { grid } = gridData;
+        grid.forEach((row, rowIdx) => {
+          row.forEach((cell, colIdx) => {
+            if (cell.ndvi !== null) {
+              // Account for visual 90-degree rotation
+              const bounds = getCellBounds(colIdx, rowIdx);
+              const color = ndviToColor(cell.ndvi);
+              
+              // Draw rectangle for this cell with exact geographic bounds
+              const rectangle = new window.google.maps.Rectangle({
+                bounds: {
+                  north: bounds.north,
+                  south: bounds.south,
+                  east: bounds.east,
+                  west: bounds.west
+                },
+                strokeColor: color,
+                strokeOpacity: 0.6,
+                strokeWeight: 0.5,
+                fillColor: color,
+                fillOpacity: 0.45,
+                map: map
+              });
+              
+              polygonsRef.current.push(rectangle);
+            }
+          });
+        });
+      }
+      setOverlayEnabled(true);
+    }
+  };
+
+  // Calculate cell coordinates
+  const getCellCoordinates = (rowIdx, colIdx) => {
+    if (!gridData || !gridData.bounds) return null;
+    const { minLat, maxLat, minLon, maxLon } = gridData.bounds;
+    
+    // Calculate center coordinates of the cell
+    const cellWidth = (maxLon - minLon) / GRID_SIZE;
+    const cellHeight = (maxLat - minLat) / GRID_SIZE;
+    
+    const centerLon = minLon + (colIdx + 0.5) * cellWidth;
+    const centerLat = maxLat - (rowIdx + 0.5) * cellHeight;
+    
+    return {
+      latitude: centerLat,
+      longitude: centerLon,
+      cellWidth: cellWidth.toFixed(6),
+      cellHeight: cellHeight.toFixed(6)
+    };
+  };
+
   if (!gridData) {
     return <div className="text-center py-12 text-gray-500">No data available</div>;
   }
@@ -138,12 +230,24 @@ export function NDVIHeatmap({ mineData, selectedMine }) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h3 className="text-2xl font-bold text-gray-800 mb-2">🌿 Grid-Based NDVI Heatmap - Cell Analysis</h3>
-        <p className="text-gray-600 text-sm">
-          Small cell grid showing actual NDVI coloring where data exists. Empty cells are transparent/white.
-        </p>
+      {/* Header with Button */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-2xl font-bold text-gray-800 mb-2">🌿 Grid-Based NDVI Heatmap - Cell Analysis</h3>
+          <p className="text-gray-600 text-sm">
+            Small cell grid showing actual NDVI coloring where data exists. Empty cells are transparent/white.
+          </p>
+        </div>
+        <button
+          onClick={toggleOverlay}
+          className={`px-6 py-3 rounded-lg font-semibold whitespace-nowrap transition-all ${
+            overlayEnabled
+              ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg'
+              : 'bg-green-500 hover:bg-green-600 text-white shadow-lg'
+          }`}
+        >
+          [ {overlayEnabled ? 'Hide' : 'Overlay'} NDVI ]
+        </button>
       </div>
 
       {/* Legend */}
@@ -182,7 +286,75 @@ export function NDVIHeatmap({ mineData, selectedMine }) {
       {/* Grid Container */}
       <div className="flex gap-8">
         {/* Left: Grid */}
-        <div className="flex-1 bg-white rounded-lg shadow-md p-6 overflow-x-auto flex items-center justify-center">
+        <div className="flex-1 bg-white rounded-lg shadow-md p-6 overflow-x-auto flex items-center justify-center relative">
+          {/* Tooltip on Hover */}
+          {hoveredCell && (
+            <div
+              style={{
+                position: 'fixed',
+                left: `${tooltipPos.x}px`,
+                top: `${tooltipPos.y}px`,
+                transform: 'translate(-50%, -100%)',
+                zIndex: 50,
+                pointerEvents: 'none',
+                marginTop: '-10px'
+              }}
+            >
+              <div className="bg-gradient-to-br from-yellow-100 to-yellow-50 border-2 border-yellow-400 rounded-lg shadow-xl p-4 w-72">
+                {/* Arrow pointing down */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '-8px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: 0,
+                    height: 0,
+                    borderLeft: '8px solid transparent',
+                    borderRight: '8px solid transparent',
+                    borderTop: '8px solid #FBBF24'
+                  }}
+                />
+                
+                <div className="text-xs font-bold text-yellow-800 mb-3 flex items-center gap-2">
+                  📍 Pixel Information
+                </div>
+                
+                <div className="space-y-2">
+                  {/* Coordinates */}
+                  {hoveredCell.coords && (
+                    <>
+                      <div className="bg-white rounded p-2 border-l-4 border-blue-500">
+                        <p className="text-gray-600 text-xs font-semibold">Latitude</p>
+                        <p className="text-gray-900 font-mono font-bold text-sm">{hoveredCell.coords.latitude.toFixed(6)}°</p>
+                      </div>
+                      <div className="bg-white rounded p-2 border-l-4 border-green-500">
+                        <p className="text-gray-600 text-xs font-semibold">Longitude</p>
+                        <p className="text-gray-900 font-mono font-bold text-sm">{hoveredCell.coords.longitude.toFixed(6)}°</p>
+                      </div>
+                    </>
+                  )}
+                  
+                  {/* NDVI & Cell Info */}
+                  <div className="bg-white rounded p-2 border-l-4 border-orange-500">
+                    <p className="text-gray-600 text-xs font-semibold">NDVI Value</p>
+                    <p className="text-gray-900 font-bold text-sm">{hoveredCell.ndvi?.toFixed(3)} ({getCellLabel(hoveredCell.ndvi)})</p>
+                  </div>
+                  
+                  <div className="bg-white rounded p-2 border-l-4 border-purple-500">
+                    <p className="text-gray-600 text-xs font-semibold">Cell Position</p>
+                    <p className="text-gray-900 font-mono font-bold text-sm">Row {hoveredCell.row} × Col {hoveredCell.col}</p>
+                  </div>
+                  
+                  <div className="bg-white rounded p-2 border-l-4 border-red-500">
+                    <p className="text-gray-600 text-xs font-semibold">Pixels in Cell</p>
+                    <p className="text-gray-900 font-bold text-sm">{hoveredCell.pixels?.length}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <div style={{ display: 'inline-block', transform: 'rotate(90deg)' }}>
             <div style={{ 
               display: 'grid', 
@@ -200,7 +372,7 @@ export function NDVIHeatmap({ mineData, selectedMine }) {
                       width: cellSize,
                       height: cellSize,
                       backgroundColor: ndviToColor(cell.ndvi),
-                      border: hoveredCell?.row === rowIdx && hoveredCell?.col === colIdx ? '2px solid #000' : '1px solid #ddd',
+                      border: hoveredCell?.row === rowIdx && hoveredCell?.col === colIdx ? '3px solid #FFD700' : '1px solid #ddd',
                       cursor: cell.ndvi !== null ? 'pointer' : 'default',
                       display: 'flex',
                       alignItems: 'center',
@@ -208,9 +380,26 @@ export function NDVIHeatmap({ mineData, selectedMine }) {
                       fontSize: '9px',
                       fontWeight: 'bold',
                       color: cell.ndvi !== null && (cell.ndvi < 0.3 || cell.ndvi > 0.7) ? '#fff' : '#333',
-                      userSelect: 'none'
+                      userSelect: 'none',
+                      transition: 'all 0.2s ease',
+                      boxShadow: hoveredCell?.row === rowIdx && hoveredCell?.col === colIdx ? '0 0 8px rgba(255, 215, 0, 0.8)' : 'none',
+                      transform: hoveredCell?.row === rowIdx && hoveredCell?.col === colIdx ? 'scale(1.1)' : 'scale(1)'
                     }}
-                    onMouseEnter={() => cell.ndvi !== null && setHoveredCell({ row: rowIdx, col: colIdx, ...cell })}
+                    onMouseEnter={() => {
+                      if (cell.ndvi !== null) {
+                        const coords = getCellCoordinates(rowIdx, colIdx);
+                        setHoveredCell({ row: rowIdx, col: colIdx, ...cell, coords });
+                      }
+                    }}
+                    onMouseMove={(e) => {
+                      if (cell.ndvi !== null) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setTooltipPos({
+                          x: rect.left + rect.width / 2,
+                          y: rect.top - 10
+                        });
+                      }
+                    }}
                     onMouseLeave={() => setHoveredCell(null)}
                     title={cell.ndvi ? `NDVI: ${cell.ndvi.toFixed(3)}, Pixels: ${cell.pixels.length}` : 'Empty'}
                   >
@@ -272,24 +461,6 @@ export function NDVIHeatmap({ mineData, selectedMine }) {
             <p className="text-xs text-gray-500 mt-1">Average value</p>
           </div>
         </div>
-
-        {/* Hover Info */}
-        {hoveredCell && (
-          <div className="mt-6 bg-blue-50 rounded-lg border-2 border-blue-400 p-4 animate-pulse">
-            <p className="text-sm font-semibold text-blue-700 mb-2">✨ Hover Info</p>
-            <div className="grid grid-cols-3 gap-4 text-sm">
-              <p className="text-gray-700">
-                <span className="font-semibold">Cell:</span> ({hoveredCell.row}, {hoveredCell.col})
-              </p>
-              <p className="text-gray-700">
-                <span className="font-semibold">NDVI:</span> {hoveredCell.ndvi?.toFixed(3)}
-              </p>
-              <p className="text-gray-700">
-                <span className="font-semibold">Pixels:</span> {hoveredCell.pixels?.length}
-              </p>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Info Note */}
