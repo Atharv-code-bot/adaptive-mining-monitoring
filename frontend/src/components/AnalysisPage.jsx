@@ -10,6 +10,7 @@ import { FinalExcavationMap } from './FinalExcavationMap';
 import { ViolationAreaOverTime } from './ViolationAreaOverTime';
 import { ExcavationVsViolationsTimeSeries } from './ExcavationVsViolationsTimeSeries';
 import { NoGoZoneViolations } from './NoGoZoneViolations';
+// import { NoGoZoneAnalytics } from './NoGoZoneAnalytics';
 
 const AnalysisPage = ({ mine, onBack }) => {
   const { properties, geometry } = mine;
