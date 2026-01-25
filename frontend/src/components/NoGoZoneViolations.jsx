@@ -1,7 +1,15 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { loadGoogleMapsScript } from '../utils/mapsUtils';
 
 export const NoGoZoneViolations = ({ mineData = [] }) => {
+  const [mapError, setMapError] = useState(null);
+  const [visualMode, setVisualMode] = useState('pins'); // 'pins' or 'density'
+  const mapRef = useRef(null);
+  const [map, setMap] = useState(null);
+  const heatmapRef = useRef(null);
+  const markersRef = useRef([]);
+
   const violationData = useMemo(() => {
     if (!mineData || mineData.length === 0) return [];
     
@@ -28,6 +36,106 @@ export const NoGoZoneViolations = ({ mineData = [] }) => {
     });
     return counts;
   }, [violationData]);
+
+  // Initialize Google Map
+  useEffect(() => {
+    if (!mapRef.current || violationData.length === 0) {
+      return;
+    }
+
+    const initMap = async () => {
+      try {
+        const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+        if (!apiKey) {
+          setMapError('Google Maps API key not configured');
+          return;
+        }
+
+        await loadGoogleMapsScript(apiKey);
+
+        // Get center from violation data
+        const lats = violationData.map(p => p.latitude);
+        const lons = violationData.map(p => p.longitude);
+        const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+        const centerLon = (Math.min(...lons) + Math.max(...lons)) / 2;
+
+        const mapInstance = new window.google.maps.Map(mapRef.current, {
+          center: { lat: centerLat, lng: centerLon },
+          zoom: 15,
+          mapTypeControl: true,
+          fullscreenControl: false,
+          streetViewControl: false,
+        });
+
+        setMap(mapInstance);
+      } catch (err) {
+        setMapError(err.message);
+      }
+    };
+
+    initMap();
+  }, [violationData]);
+
+  // Update visualization based on mode
+  useEffect(() => {
+    if (!map || violationData.length === 0) return;
+
+    // Clear previous visualization
+    markersRef.current.forEach(marker => marker.setMap(null));
+    markersRef.current = [];
+    if (heatmapRef.current) {
+      heatmapRef.current.setMap(null);
+      heatmapRef.current = null;
+    }
+
+    if (visualMode === 'pins') {
+      // Show pins
+      violationData.forEach(violation => {
+        const marker = new window.google.maps.Marker({
+          position: { lat: violation.latitude, lng: violation.longitude },
+          map: map,
+          title: `Violation @ ${violation.name}`,
+          icon: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+        });
+        markersRef.current.push(marker);
+      });
+    } else if (visualMode === 'density') {
+      // Show heatmap
+      if (window.google && window.google.maps && window.google.maps.visualization && window.google.maps.visualization.HeatmapLayer) {
+        try {
+          const heatmapData = violationData.map(
+            v => new window.google.maps.LatLng(v.latitude, v.longitude)
+          );
+
+          const heatmap = new window.google.maps.visualization.HeatmapLayer({
+            data: heatmapData,
+            map: map,
+            radius: 25,
+            opacity: 0.8,
+            maxIntensity: Math.max(violationData.length / 10, 20),
+            dissipating: true,
+            gradient: [
+              '#0000FF',  // Blue
+              '#00FFFF',  // Cyan
+              '#00FF00',  // Green
+              '#FFFF00',  // Yellow
+              '#FF7F00',  // Orange
+              '#FF0000'   // Red
+            ]
+          });
+
+          heatmapRef.current = heatmap;
+        } catch (err) {
+          console.error('Heatmap error:', err);
+          setVisualMode('pins');
+        }
+      } else {
+        // Fallback to pins if heatmap not available
+        console.warn('Heatmap visualization not available');
+        setVisualMode('pins');
+      }
+    }
+  }, [visualMode, map, violationData]);
 
   if (mineData.length === 0) {
     return (
@@ -86,6 +194,63 @@ export const NoGoZoneViolations = ({ mineData = [] }) => {
 
       {totalAnomalies > 0 ? (
         <>
+          {/* Google Map Visualization */}
+          <div className="bg-gradient-to-b from-gray-50 to-white p-6 rounded-xl border border-gray-200">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h4 className="font-bold text-gray-800">📍 Spatial Distribution Map</h4>
+                <p className="text-sm text-gray-600 mt-1">Red dots = Violation points | Black boundaries = No-go zone polygons</p>
+              </div>
+              {/* Visualization Mode Toggle */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setVisualMode('pins')}
+                  className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all ${
+                    visualMode === 'pins'
+                      ? 'bg-red-500 text-white shadow-lg'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  ● Pins
+                </button>
+                <button
+                  onClick={() => setVisualMode('density')}
+                  className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all ${
+                    visualMode === 'density'
+                      ? 'bg-red-500 text-white shadow-lg'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  🔥 Density
+                </button>
+              </div>
+            </div>
+            <div
+              ref={mapRef}
+              style={{ 
+                width: '100%', 
+                height: '500px',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                border: '1px solid #e5e7eb'
+              }}
+            >
+              {mapError && (
+                <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                  <p className="text-red-600 text-sm">{mapError}</p>
+                </div>
+              )}
+            </div>
+            <div className="mt-4 text-xs text-gray-600 bg-blue-50 p-3 rounded">
+              <strong>Legend:</strong> 
+              {visualMode === 'pins' ? (
+                <span>🔴 Red markers show excavated pixels inside protected no-go zones. Each point represents a violation event detected through temporal anomaly filtering.</span>
+              ) : (
+                <span>🔥 Density heatmap shows violation intensity. Blue = low density, Red = high density. Helps identify violation hotspots when pins overlap.</span>
+              )}
+            </div>
+          </div>
+
           {/* Scatter Plot - Violation Overlay */}
           <div className="bg-gradient-to-b from-gray-50 to-white p-6 rounded-xl border border-gray-200">
             <h4 className="font-bold text-gray-800 mb-4">Violation Spatial Distribution (Longitude vs Latitude)</h4>
