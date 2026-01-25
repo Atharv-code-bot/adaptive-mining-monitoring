@@ -39,7 +39,7 @@ export const loadGoogleMapsScript = (apiKey) => {
     }
 
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=marker&callback=${callbackName}`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=marker,visualization&callback=${callbackName}`;
     script.async = true;
     script.defer = true;
     
